@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendrier d'Événements</title>
+  <style>
+     body {
+      display: flex;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+
+    #left-section {
+      flex: 1;
+      background-color: #f2f2f2;
+      padding: 20px;
+    }
+
+    #right-section {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #calendar {
+      background-color: #ffffff;
+      border: 1px solid #ccc;
+      width: 100%;
+      height: 100%;
+    }
+
+    #hour-selector {
+      display: flex;
+      flex-direction: row;
+      background-color: #001f3f;
+      color: #fff;
+      padding: 10px;
+    }
+
+    .hour-option {
+      cursor: pointer;
+      margin-right: 10px;
+    }
+
+    #event-details {
+      margin-top: 20px;
+    }
+
+    .fc-day-sun, .fc-day-sat {
+      color: red !important;
+    }
+
+    .fc-day-grid-event {
+      background-color: lightblue !important;
+    }
+
+    .tarif-selector {
+      margin-top: 10px;
+    }
+
+    .tarif-option {
+      cursor: pointer;
+      margin-bottom: 5px;
+    }
+
+    #next-step-button {
+      margin-top: auto;
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  
+  </style>
+</head>
+<body>
+
+<div id="left-section">
+  <div id="calendar"></div>
+</div>
+
+<div id="right-section">
+  <div id="hour-selector">
+    <div class="hour-option" data-hour="00:00">00:00</div>
+    <div class="hour-option" data-hour="09:00">09:00</div>
+    <div class="hour-option" data-hour="10:00">10:00</div>
+    <div class="hour-option" data-hour="11:00">11:00</div>
+    <div class="hour-option" data-hour="12:00">12:00</div>
+    <div class="hour-option" data-hour="14:00">14:00</div>
+    <div class="hour-option" data-hour="15:00">15:00</div>
+  </div>
+
+  <div id="event-details">
+    <p>Nous vous invitons à choisir un nombre de tickets. Date de la visite : <span id="chosen-date"></span></p>
+    <div id="tarif-selector" class="tarif-selector"></div>
+  </div>
+
+  <button id="next-step-button">Passer à l'étape suivante</button>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.css" rel="stylesheet"/>
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js" ></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.10.2/fullcalendar.min.js" ></script>
+<script>
+  $(document).ready(function() {
+    var selectedDate = null;
+    var selectedHour = null;
+
+    // FullCalendar initialization code
+    $('#calendar').fullCalendar({
+      // Your FullCalendar options
+      defaultView: 'month', // You can customize this as needed
+      header: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'month,agendaWeek,agendaDay'
+      },
+      events: [],
+      dayClick: function(date, jsEvent, view) {
+        selectedDate = date.format('YYYY-MM-DD');
+        $('#chosen-date').text(selectedDate);
+        updateTarifSelector();
+      }
+    });
+
+    // Function to render the calendar data
+    function getDataAndRenderCalendar() {
+      var jsonData = {
+        "ZCW3KFa87hpAKsfG": "9cdSoZlrhFtLPyLY",
+        "file_requested": "events",
+        "id_event": "168"
+      };
+
+      $.ajax({
+        url: 'https://ventetoapijs.cwb.ovh/relay.php',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(jsonData),
+        success: function (response) {
+          renderCalendar(response);
+        },
+        error: function (error) {
+          console.error(error);
+        }
+      });
+    }
+
+    
+    function renderCalendar(data) {
+      $('#calendar').fullCalendar('destroy'); 
+      $('#calendar').fullCalendar({
+        events: JSON.parse(data),
+        
+        dayRender: function (date, cell) {
+          if (date.day() === 0 || date.day() === 6) {
+            cell.css("color", "red");
+          } else {
+            cell.css("color", "black");
+          }
+
+          if (date.day() === 0 || date.day() === 6) {
+            cell.css("background-color", "lightblue");
+          }
+        },
+        eventClick: function (calEvent, jsEvent, view) {
+          
+        }
+      });
+    }
+
+    getDataAndRenderCalendar();
+
+    
+    $('#hour-selector .hour-option').click(function () {
+      selectedHour = $(this).data('hour');
+      $('#chosen-date').text(selectedDate + ' ' + selectedHour);
+      updateTarifSelector();
+    });
+
+    
+    function updateTarifSelector() {
+      var tarifSelector = $('#tarif-selector');
+      tarifSelector.empty();
+
+ 
+      var tarifs = {
+        "-6ans": { id: 1, price: "0.00 $" },
+        "6-18ans": { id: 2, price: "9.00 $" },
+        "adults": { id: 3, price: "12.00 $" },
+        "etudiants": { id: 4, price: "9.00 $" },
+        "familie": { id: 5, price: "36.00 $" }
+      };
+
+      $.each(tarifs, function (key, value) {
+        var option = $('<div class="tarif-option" data-tarif="' + key + '">' + key + ' (' + value.price + ')</div>');
+        var select = $('<select class="ticket-quantity"></select>');
+        for (var i = 0; i <= 10; i++) {
+          var quantityOption = $('<option value="' + i + '">' + i + '</option>');
+          select.append(quantityOption);
+        }
+
+        option.append(select);
+
+        option.click(function () {
+          var selectedTarif = $(this).data('tarif');
+          var selectedQuantity = $(this).find('.ticket-quantity').val();
+          $('#chosen-date').text(selectedDate + ' ' + selectedHour + ' - Tarif: ' + selectedTarif + ' - Quantité: ' + selectedQuantity);
+        });
+
+        tarifSelector.append(option);
+      });
+    }
+
+    $('#next-step-button').click(function () {
+      
+      alert('Next step clicked!'); 
+    });
+  });
+</script>
+
+</body>
+</html>
+
+
+
